@@ -23,7 +23,7 @@ def test_dishes():
     answer = {"What": "cookie"}
     query = food_kb.query(pl.Expr("food_flavor(What, sweet)"))
     assert answer in query
-    
+
 def test_friends():
     friends_kb = pl.KnowledgeBase("friends")
     friends_kb([
@@ -46,10 +46,10 @@ def test_friends():
     assert david in friends_kb.query(pl.Expr("to_smoke(Who, P)"))
     dan_reb = [{'Who': 'rebecca', 'P': '0.4'}, {'Who': 'daniel', 'P': 0.024000000000000004}]
     assert all(i in friends_kb.query(pl.Expr("to_have_asthma(Who, P)")) for i in dan_reb)
-    
+
 def test_iris():
     iris_kb = pl.KnowledgeBase("iris")
-    iris_kb(["species(setosa, Truth) :- petal_width(W), Truth is W <= 0.80", 
+    iris_kb(["species(setosa, Truth) :- petal_width(W), Truth is W <= 0.80",
              "species(versicolor, Truth) :- petal_width(W), petal_length(L), Truth is W > 0.80 and L <= 4.95",
              "species(virginica, Truth) :- petal_width(W), petal_length(L), Truth is W > 0.80 and L > 4.95",
              "petal_length(5.1)",
@@ -69,4 +69,34 @@ def test_graph():
 
     query = graph.query(pl.Expr("path(a, e, W)"), cut = True)
     assert [d.get("W") for d in query][0] == 10
-    
+
+
+
+def test_memory_off():
+    class_kb = pl.KnowledgeBase("classmates")
+    class_kb([
+        "person(noor)",
+        "person(melissa)",
+        "person(dmitry)",
+    ])
+
+    # we can confirm that the entries are cached based on the sam erequest
+    assert len(class_kb.query(pl.Expr("person(X)"))) == 3
+    class_kb.add_kn(["person(abdel)"])
+    assert len(class_kb.query(pl.Expr("person(X)"))) == 3
+
+
+    new_class = pl.KnowledgeBase("classmates")
+    new_class([
+        "person(noor)",
+        "person(melissa)"
+    ])
+    assert len(new_class.query(pl.Expr("person(X)"))) == 2
+    new_class.add_kn(["person(abdel)"])
+    assert len(new_class.query(pl.Expr("person(X)"), cache=False)) == 3
+    new_class.add_kn(["person(mohammed)"])
+    assert len(new_class.query(pl.Expr("person(X)"), cache=False)) == 4
+
+    # we set cache=True to test that a new entry but using cache
+    new_class.add_kn(["person(rico)"])
+    assert len(new_class.query(pl.Expr("person(X)"))) == 4

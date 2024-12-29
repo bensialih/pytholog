@@ -10,7 +10,7 @@ from .search_util import *
 
 ## the knowledge base object where we will store the facts and rules
 ## it's a dictionary of dictionaries where main keys are the predicates
-## to speed up searching by looking only into relevant buckets rather than looping over 
+## to speed up searching by looking only into relevant buckets rather than looping over
 ## the whole database
 class KnowledgeBase(object):
     __id = 0
@@ -22,7 +22,7 @@ class KnowledgeBase(object):
         KnowledgeBase.__id += 1
         self.name = name
         self._cache = {}
-    
+
     ## the main function that adds new entries or append existing ones
     ## it creates "facts", "goals" and "terms" buckets for each predicate
     def add_kn(self, kn):
@@ -45,15 +45,15 @@ class KnowledgeBase(object):
                 self.db[i.lh.predicate]["terms"].push(i.terms)
                 #self.db[i.lh.predicate]["goals"] = [g]
                 #self.db[i.lh.predicate]["terms"] = [i.terms]
-            
+
     def __call__(self, args):
         self.add_kn(args)
 
     ## query method will only call rule_query which will call the decorators chain
-    ## it is only to be user intuitive readable method                                      
-    def query(self, expr, cut = False, show_path = False):
-        return rule_query(self, expr, cut, show_path)
-        
+    ## it is only to be user intuitive readable method
+    def query(self, expr, cut = False, show_path = False, cache = True):
+        return rule_query(self, expr, cut, show_path, cache=cache)
+
     def rule_search(self, expr):
         if expr.predicate not in self.db:
             return "Rule does not exist!"
@@ -70,12 +70,12 @@ class KnowledgeBase(object):
 
     def __str__(self):
         return "KnowledgeBase: " + self.name
-        
+
     def clear_cache(self):
         self._cache.clear()
 
     __repr__ = __str__
-    
+
 
 class DeprecationHelper(object):
     def __init__(self, new_target):
@@ -94,4 +94,3 @@ class DeprecationHelper(object):
         return getattr(self.new_target, attr)
 
 knowledge_base = DeprecationHelper(KnowledgeBase)
-    

@@ -12,11 +12,11 @@ from .search_util import *
 def memory(querizer):
     #cache = {}
     @wraps(querizer)
-    def memorize_query(kb, arg1, cut, show_path):
+    def memorize_query(kb, arg1, cut, show_path, cache=True):
         temp_cache = {}
         #original, look_up = term_checker(arg1)
         indx, look_up = term_checker(arg1)
-        if look_up in kb._cache:
+        if look_up in kb._cache and cache:
             #return cache[look_up]
             temp_cache = kb._cache[look_up] ## if it already exists return it
         else:
@@ -31,8 +31,8 @@ def memory(querizer):
                 old = list(d.keys())
                 #for i in range(len(arg1.terms)):
                 for i,j in zip(indx, range(len(old))):
-                    d[arg1.terms[i]] = d.pop(old[j])                      
-        return temp_cache    
+                    d[arg1.terms[i]] = d.pop(old[j])
+        return temp_cache
     return memorize_query
 
 ## querizer decorator is called whenever there's a new query
@@ -43,7 +43,7 @@ def memory(querizer):
 def querizer(simple_query):
     def wrap(rule_query):
         @wraps(rule_query)
-        def prepare_query(kb, arg1, cut, show_path):
+        def prepare_query(kb, arg1, cut, show_path, **kwargs):
             pred = arg1.predicate
             if pred in kb.db:
                 goals_len = 0.0
@@ -53,8 +53,8 @@ def querizer(simple_query):
                     return simple_query(kb, arg1)
                 else:
                     return rule_query(kb, arg1, cut, show_path)
-        return prepare_query 
-    return wrap 
+        return prepare_query
+    return wrap
 
 ## simple function it unifies the query with the corresponding facts
 def simple_query(kb, expr):
@@ -67,7 +67,7 @@ def simple_query(kb, expr):
         first, last = fact_binary_search(search_base, key)
     else:
         first, last = (0, len(search_base))
-        
+
     for i in range(first, last):
         res = {}
         uni = unify(expr, Expr(search_base[i].to_string()), res)
@@ -80,7 +80,7 @@ def simple_query(kb, expr):
 ## rule_query() is the main search function
 @memory
 @querizer(simple_query)
-def rule_query(kb, expr, cut, show_path):
+def rule_query(kb, expr, cut, show_path, cache=True):
     #pdb.set_trace() # I used to trace every step in the search that consumed me to figure out :D
     rule = Fact(expr.to_string()) # change expr to rule class
     answer = []
@@ -94,32 +94,32 @@ def rule_query(kb, expr, cut, show_path):
     while not queue.empty: ## keep searching until it is empty meaning nothing left to be searched
         current_goal = queue.pop()
         if current_goal.ind >= len(current_goal.fact.rhs): ## all rule goals have been searched
-            if current_goal.parent == None: ## no more parents 
+            if current_goal.parent == None: ## no more parents
                 if current_goal.domain:  ## if there is an answer return it
                     answer.append(current_goal.domain)
                     if cut: break
-                else: 
+                else:
                     answer.append("Yes") ## if no returns Yes
-                continue ## if no answer found go back to the parent a step above again    
-            
+                continue ## if no answer found go back to the parent a step above again
+
             ## father which is the main rule takes unified child's domain from facts
             child_to_parent(current_goal, queue)
             if show_path: path.append(current_goal.domain)
             continue
-        
+
         ## get the rh expr from the current goal to look for its predicate in database
         rule = current_goal.fact.rhs[current_goal.ind]
-        
+
         ## Probabilities and numeric evaluation
         if rule.predicate == "": ## if there is no predicate
             prob_calc(current_goal, rule, queue)
             continue
-        
+
         # inequality
         if rule.predicate == "neq":
             filter_eq(rule, current_goal, queue)
             continue
-            
+
         elif rule.predicate in kb.db:
             ## search relevant buckets so it speeds up search
             rule_f = kb.db[rule.predicate]["facts"]
@@ -129,10 +129,10 @@ def rule_query(kb, expr, cut, show_path):
             else:
                 # a child to search facts in kb
                 child_assigned(rule, rule_f, current_goal, queue)
-    
+
     answer = answer_handler(answer)
-    
-    if show_path: 
+
+    if show_path:
         path = get_path(kb.db, expr, path)
         return answer, path
     else:
